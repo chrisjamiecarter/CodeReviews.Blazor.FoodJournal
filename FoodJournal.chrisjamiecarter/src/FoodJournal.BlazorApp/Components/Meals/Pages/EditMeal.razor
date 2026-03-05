@@ -1,0 +1,152 @@
+﻿@using FoodJournal.BlazorApp.Components.Meals.Models
+
+@inject ICurrentUserService CurrentUserService
+@inject IFoodService FoodService
+@inject IMealService MealService
+@inject NavigationManager NavigationManager
+
+<EditForm id="mealForm"  class="space-y-6" Model="@Input" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <!-- Meal Name -->
+    <div>
+        <label for="Input.Name" class="block mb-2 text-sm/6 font-medium text-stone-50">Name</label>
+        <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                <span class="material-symbols-outlined" style="font-size:20px;">abc</span>
+            </div>
+            <InputText @bind-Value="Input.Name" id="Input.Name" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" aria-required="true" placeholder="Meal name" />
+        </div>
+        <ValidationMessage For="() => Input.Name" class="pt-1.5 text-red-600 text-sm" />
+    </div>
+
+    <!-- Foods Multi-Select -->
+    <div>
+        <label for="Input.Foods" class="block mb-2 text-sm/6 font-medium text-stone-50">Foods</label>
+
+        <div>
+            <label for="FoodSearch" class="sr-only">Search</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                    <span class="material-symbols-outlined" style="font-size:20px;">search</span>
+                </div>
+                <input type="text" id="FoodSearch" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" placeholder="Search" @oninput="FilterFoods" />
+            </div>
+        </div>
+
+        <div id="Input.Foods" class="p-3 max-h-60 overflow-y-auto">
+
+            @if (FilteredFoods.Any())
+            {
+                <div class="flex flex-wrap gap-3">
+                    @foreach (var food in FilteredFoods)
+                    {
+                        var isSelected = Input.Foods.Contains(food);
+                        <FoodSelectCard Food="@food"
+                                        IsSelected="@isSelected"
+                                        OnClick="@(() => ToggleFood(food, !isSelected))" />
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-sm text-stone-50">No foods available</p>
+            }
+        </div>
+        <ValidationMessage For="() => Input.Foods" class="pt-1.5 text-red-600 text-sm" />
+    </div>
+
+    <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Button Style="Button.ButtonStyle.Secondary" OnClickCallback="OnCancel">
+            Cancel
+        </Button>
+            
+        @if (!isSubmitting)
+        {
+            <Button Style="Button.ButtonStyle.Primary" Type="Button.ButtonType.Submit">
+                Save Changes
+            </Button>
+        }
+        else
+        {
+            <Button Disabled="@true" Style="Button.ButtonStyle.Primary" Type="Button.ButtonType.Button">
+                <LoadingIcon />
+            </Button>
+        }
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public IEnumerable<Food>? Foods { get; set; }
+
+    [Parameter]
+    public QuickMeal? QuickMeal { get; set; }
+
+    [Parameter]
+    public EventCallback<UpdateMealInputModel> OnUpdateMeal { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private UpdateMealInputModel Input { get; set; } = new();
+
+    private bool isSubmitting = false;
+
+    private IEnumerable<Food> FilteredFoods { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        if (Foods != null)
+        {
+            FilteredFoods = Foods;
+        }
+
+        if (QuickMeal != null)
+        {
+            Input = new UpdateMealInputModel
+            {
+                Id = QuickMeal.Id,
+                Name = QuickMeal.Name,
+            };
+
+            foreach (var food in QuickMeal.Foods)
+            {
+                Input.Foods.Add(food);
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        await OnUpdateMeal.InvokeAsync(Input);
+    }
+
+    private void ToggleFood(Food food, bool isSelected)
+    {
+        if (isSelected)
+        {
+            if (!Input.Foods.Contains(food))
+            {
+                Input.Foods.Add(food);
+            }
+        }
+        else
+        {
+            if (Input.Foods.Contains(food))
+            {
+                Input.Foods.Remove(food);
+            }
+        }
+    }
+
+    private void FilterFoods(ChangeEventArgs e)
+    {
+        var searchString = e.Value?.ToString()?.ToLower() ?? "";
+        if (Foods != null)
+        {
+            FilteredFoods = Foods.Where(x => x.Name.ToLower().IndexOf(searchString) >= 0);
+        }
+    }
+}

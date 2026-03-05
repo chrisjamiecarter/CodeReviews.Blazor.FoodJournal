@@ -1,0 +1,142 @@
+﻿@using FoodJournal.BlazorApp.Components.Journal.Models
+
+<article class="p-3 rounded-lg bg-stone-950 p-6 ring-1 shadow-xs ring-white/10">
+    <div class="flex justify-between">
+        <h3 class="font-bold">@MealType</h3>     
+        <button class="flex items-center cursor-pointer rounded-full p-1 text-cyan-400 hover:bg-white/15" onclick="@ShowAddModal">
+            <span class="material-symbols-outlined">add</span>
+        </button>
+    </div>
+
+    @if (MealFoods is null)
+    {
+        <LoadingSpinner />
+    }
+    else
+    {
+        <div class="relative overflow-x-auto">
+            <table class="w-full text-sm text-left text-stone-50 border-separate border-spacing-y-2">
+                <tbody>
+                    @foreach (var food in MealFoods)
+                    {
+                        <tr class="hover:bg-white/3">
+                            <td scope="row" class="rounded-l-lg py-3">
+                                <div class="flex items-center gap-3">
+                                    <img src="@food.Base64Image" alt="@food.Name" class="w-10 h-10 rounded object-cover" />
+                                    <div>
+                                        <div class="font-medium text-white">@food.Name</div>
+                                        <div class="text-xs text-stone-500">@food.ServingSize</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="flex items-center gap-4 justify-end">
+                                    <NutritionDisplay Food="food" />
+                                    <button class="flex items-center cursor-pointer rounded-full p-1 text-cyan-400 hover:bg-white/15" @onclick="@(() => ShowDeleteModal(food.Id))">
+                                        <span class="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (IsAddModalVisible)
+        {
+            <Modal Title="@($"Add {MealType} Foods")"
+                   OnClose="@HideAddModal"
+                   ShowFooter="@false">
+                <AddMeal JournalDate="@MealDate" JournalMealType="@MealType" AvailableFoods="@AvailableFoods" AvailableMeals="@AvailableMeals" OnAddMeal="@HandleAddJournalMeal" OnCancel="@HideAddModal" />
+            </Modal>
+        }
+
+        @if (IsDeleteModalVisible)
+        {
+            <DeleteConfirmationModal Title="Delete food journal entry?"
+                                     Message="Do you really want to delete this food from your journal?"
+                                     OnCancel="HideDeleteModal"
+                                     OnClose="HideDeleteModal"
+                                     OnConfirm="HandleDeleteJournalMealFood" />
+        }
+    }
+</article>
+
+@code {
+    [Parameter]
+    public IEnumerable<Food>? AvailableFoods { get; set; }
+
+    [Parameter]
+    public IEnumerable<QuickMeal>? AvailableMeals { get; set; }
+
+    [Parameter]
+    public MealType MealType { get; set; }
+
+    [Parameter]
+    public DateTime MealDate { get; set; }
+
+    [Parameter]
+    public IEnumerable<Food>? MealFoods { get; set; }
+
+    [Parameter]
+    public EventCallback<CreateJournalMealDto> OnAddJournalMeal { get; set; }
+
+    [Parameter]
+    public EventCallback<DeleteJournalMealFoodDto> OnDeleteJournalMealFood { get; set; }
+
+    private bool IsAddModalVisible { get; set; } = false;
+
+    private bool IsDeleteModalVisible { get; set; } = false;
+
+    private Guid? DeletionCandidate { get; set; } = null;
+
+    private async Task HandleAddJournalMeal(CreateJournalMealDto createMeal)
+    {
+        await OnAddJournalMeal.InvokeAsync(createMeal);
+        await HideAddModal();
+    }
+
+    private async Task HandleDeleteJournalMealFood()
+    {
+        if (DeletionCandidate != null)
+        {
+            var deleteMealMood = new DeleteJournalMealFoodDto
+            {
+                Date = MealDate,
+                Type = MealType,
+                FoodId = DeletionCandidate.Value,
+            };
+        
+            await OnDeleteJournalMealFood.InvokeAsync(deleteMealMood);
+        }
+
+        await HideDeleteModal();
+    }
+
+    private async Task HideAddModal()
+    {
+        IsAddModalVisible = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HideDeleteModal()
+    {
+        DeletionCandidate = null;
+        IsDeleteModalVisible = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowAddModal()
+    {
+        IsAddModalVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowDeleteModal(Guid foodId)
+    {
+        DeletionCandidate = foodId;
+        IsDeleteModalVisible = true;
+        await InvokeAsync(StateHasChanged);
+    }
+}

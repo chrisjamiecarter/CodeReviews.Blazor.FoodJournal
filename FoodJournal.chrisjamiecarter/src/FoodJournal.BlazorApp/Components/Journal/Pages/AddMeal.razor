@@ -1,0 +1,288 @@
+﻿@using FoodJournal.BlazorApp.Components.Journal.Models
+@inject ICurrentUserService CurrentUserService
+@inject IFoodService FoodService
+@inject IMealService MealService
+@inject NavigationManager NavigationManager
+
+<div class="border-b border-gray-400 mb-2">
+    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center text-stone-50">
+        <li>
+            <button class="@(GetTabClass(PageTab.Foods))" onclick="@(() => SetSelectedTab(PageTab.Foods))">
+                <span class="material-symbols-outlined mr-1" style="font-size:18px;">restaurant</span>
+                Foods
+            </button>
+        </li>
+        <li>
+            <button class="@(GetTabClass(PageTab.Meals))" onclick="@(() => SetSelectedTab(PageTab.Meals))">
+                <span class="material-symbols-outlined mr-1" style="font-size:18px;">menu_book</span>
+                Meals
+            </button>
+        </li>
+    </ul>
+</div>
+
+@if (SelectedTab == PageTab.Foods)
+{
+    <div class="mb-3">
+        <label for="FoodSearch" class="sr-only">Search</label>
+        <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                <span class="material-symbols-outlined" style="font-size:20px;">search</span>
+            </div>
+            <input type="text" id="FoodSearch" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" placeholder="Search" @oninput="FilterFoods" />
+        </div>
+    </div>
+
+    <EditForm id="foodForm" Model="@FoodInput" OnValidSubmit="HandleValidFoodSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Foods Multi-Select -->
+        <div class="mb-3">
+            <div class="p-3 max-h-60 overflow-y-auto">
+
+                @if (FilteredFoods.Any())
+                {
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var food in FilteredFoods)
+                        {
+                            var isSelected = FoodInput.Foods.Contains(food);
+                            <FoodSelectCard Food="@food"
+                                            IsSelected="@isSelected"
+                                            OnClick="@(() => ToggleFood(food, !isSelected))" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-sm text-stone-50">No foods available</p>
+                }
+            </div>
+
+            @if (!FoodInput.Foods.Any())
+            {
+                <p class="mt-1 text-sm text-red-600">Please select at least one food item.</p>
+            }
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button OnClickCallback="OnCancel" Style="Button.ButtonStyle.Secondary">
+                Cancel
+            </Button>
+            <Button Disabled="@(!FoodInput.Foods.Any())" Type="Button.ButtonType.Submit" Style="Button.ButtonStyle.Primary">
+                Add Meal
+            </Button>
+        </div>
+    </EditForm>
+}
+
+@if (SelectedTab == PageTab.Meals)
+{
+    <div class="mb-3">
+        <label for="MealSearch" class="sr-only">Search</label>
+        <div class="relative">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                <span class="material-symbols-outlined" style="font-size:20px;">search</span>
+            </div>
+            <input type="text" id="MealSearch" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" placeholder="Search" @oninput="FilterMeals" />
+        </div>
+    </div>
+
+    <EditForm id="mealForm" Model="@MealInput" OnValidSubmit="HandleValidMealSubmit">
+        <DataAnnotationsValidator />
+
+        <!-- Meals Single Select -->
+        <div class="mb-3">
+            <div class="p-3 max-h-60 overflow-y-auto">
+                @if (FilteredMeals.Any())
+                {
+                    <div class="flex flex-wrap gap-3">
+                        @foreach (var meal in FilteredMeals)
+                        {
+                            var isSelected = MealInput.SelectedMeal?.Id == meal.Id;
+                            <div class="@GetCardClasses(isSelected)" @onclick="@(() => SelectMeal(meal))">
+                                <div class="relative">
+                                    <div class="flex items-center justify-center ">
+                                        <img src="data:image/png;base64,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" alt="@meal.Name" class="w-12 h-12 object-cover rounded-t-lg" />
+                                        @if (isSelected)
+                                        {
+                                            <div class="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center">
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="mt-1">
+                                    <h3 class="text-xs font-medium text-stone-900 text-center block">
+                                        @meal.Name
+                                    </h3>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-sm text-stone-50">No meals available</p>
+                }
+            </div>
+
+            @if (MealInput.SelectedMeal is null)
+            {
+                <p class="mt-1 text-sm text-red-600">Please select a meal.</p>
+            }
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button OnClickCallback="OnCancel" Style="Button.ButtonStyle.Secondary">
+                Cancel
+            </Button>
+            <Button Disabled="@(MealInput.SelectedMeal is null)" Type="Button.ButtonType.Submit" Style="Button.ButtonStyle.Primary">
+                Add Meal
+            </Button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public DateTime JournalDate { get; set; }
+
+    [Parameter]
+    public MealType JournalMealType { get; set; }
+
+    [Parameter]
+    public IEnumerable<Food>? AvailableFoods { get; set; }
+
+    [Parameter]
+    public IEnumerable<QuickMeal>? AvailableMeals { get; set; }
+
+    [Parameter]
+    public EventCallback<CreateJournalMealDto> OnAddMeal { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private IEnumerable<Food> FilteredFoods { get; set; } = [];
+
+    private IEnumerable<QuickMeal> FilteredMeals { get; set; } = [];
+
+    private CreateJournalMealDto FoodInput = new();
+
+    private SelectQuickMealDto MealInput = new();
+
+    private PageTab SelectedTab { get; set; } = PageTab.Foods;
+
+    private string GetCardClasses(bool isSelected)
+    {
+        var baseClasses = "cursor-pointer transition-all duration-200 hover:scale-105 p-2 rounded-lg";
+        var selectedClasses = isSelected
+            ? "bg-cyan-100 ring-2 ring-cyan-400"
+            : "bg-white";
+
+        return $"{baseClasses} {selectedClasses}";
+    }
+
+    private string GetTabClass(PageTab tab)
+    {
+        var baseClasses = "inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg cursor-pointer group";
+        var selectedClasses = SelectedTab == tab
+            ? "text-cyan-400 border-cyan-400 active "
+            : "border-transparent hover:text-cyan-500 hover:border-cyan-500";
+
+        return $"{baseClasses} {selectedClasses}";
+    }
+
+    private enum PageTab
+    {
+        Foods,
+        Meals
+    }
+
+    private async Task HandleValidFoodSubmit()
+    {
+        FoodInput.Date = JournalDate;
+        FoodInput.Type = JournalMealType;
+
+        await OnAddMeal.InvokeAsync(FoodInput);
+    }
+
+    private async Task HandleValidMealSubmit()
+    {
+        var quickAdd = new CreateJournalMealDto
+        {
+            Date = JournalDate,
+            Type = JournalMealType,
+        };
+
+        var foods = MealInput.SelectedMeal?.Foods ?? [];
+        foreach (var food in foods)
+        {
+            quickAdd.Foods.Add(food);
+        }
+
+        await OnAddMeal.InvokeAsync(quickAdd);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (AvailableFoods != null)
+        {
+            FilteredFoods = AvailableFoods;
+        }
+
+        if (AvailableMeals != null)
+        {
+            FilteredMeals = AvailableMeals;
+        }
+    }
+
+    private void ToggleFood(Food food, bool isSelected)
+    {
+        if (isSelected)
+        {
+            if (!FoodInput.Foods.Contains(food))
+            {
+                FoodInput.Foods.Add(food);
+            }
+        }
+        else
+        {
+            if (FoodInput.Foods.Contains(food))
+            {
+                FoodInput.Foods.Remove(food);
+            }
+        }
+    }
+
+    private void SelectMeal(QuickMeal meal)
+    {
+        MealInput.SelectedMeal = meal;
+    }
+
+    private void SetSelectedTab(PageTab tab)
+    {
+        SelectedTab = tab;
+        FilteredFoods = AvailableFoods ?? [];
+        FilteredMeals = AvailableMeals ?? [];
+    }
+
+    private void FilterFoods(ChangeEventArgs e)
+    {
+        var searchString = e.Value?.ToString()?.ToLower() ?? "";
+        if (AvailableFoods != null)
+        {
+            FilteredFoods = AvailableFoods.Where(x => x.Name.ToLower().IndexOf(searchString) >= 0);
+        }
+    }
+    
+    private void FilterMeals(ChangeEventArgs e)
+    {
+        var searchString = e.Value?.ToString()?.ToLower() ?? "";
+        if (AvailableMeals != null)
+        {
+            FilteredMeals = AvailableMeals.Where(x => x.Name.ToLower().IndexOf(searchString) >= 0);
+        }
+    }
+}

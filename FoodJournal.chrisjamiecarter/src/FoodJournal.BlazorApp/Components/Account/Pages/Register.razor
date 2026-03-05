@@ -1,0 +1,220 @@
+﻿@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using FoodJournal.Application.Database
+@using FoodJournal.Application.Entities
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject IdentityRedirectManager RedirectManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject ILogger<Register> Logger
+@inject ISeedService SeedService
+@inject IUserStore<ApplicationUser> UserStore
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Register</PageTitle>
+
+<div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+    <div class="bg-zinc-950 rounded-lg p-10 ring-1 shadow-xs ring-white/10 sm:mx-auto sm:w-full sm:max-w-md">
+
+        <div>
+            <img class="mx-auto h-20 w-auto" src="/images/food-journal-logo-512x512.png" alt="Bite Log">
+            <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-stone-50">Register a new account</h2>
+        </div>
+
+        <div class="mt-10">
+            <StatusMessage Message="@Message" />
+            <EditForm class="space-y-6" Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                <DataAnnotationsValidator />
+
+                <div>
+                    <label for="Input.Username" class="block mb-2 text-sm/6 font-medium text-stone-50">Username</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                            <span class="material-symbols-outlined" style="font-size:20px;">person</span>
+                        </div>
+                        <InputText @bind-Value="Input!.Username" id="Input.Username" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" autocomplete="username" aria-required="true" placeholder="username" />
+                    </div>
+                    <ValidationMessage For="() => Input.Username" class="pt-1.5 text-red-600 text-sm" />
+                </div>
+
+                <div>
+                    <label for="Input.Email" class="block mb-2 text-sm/6 font-medium text-stone-50">Email address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                            <span class="material-symbols-outlined" style="font-size:20px;">alternate_email</span>
+                        </div>
+                        <InputText @bind-Value="Input.Email" id="Input.Email" type="email" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" autocomplete="email" aria-required="true" placeholder="name@example.com" />
+                    </div>
+                    <ValidationMessage For="() => Input.Email" class="pt-1.5 text-red-600 text-sm" />
+                </div>
+
+                <div>
+                    <label for="Input.Password" class="block mb-2 text-sm/6 font-medium text-stone-50">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                            <span class="material-symbols-outlined" style="font-size:20px;">key</span>
+                        </div>
+                        <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" autocomplete="current-password" aria-required="true" placeholder="password" />
+                    </div>
+                    <ValidationMessage For="() => Input.Password" class="pt-1.5 text-red-600 text-sm" />
+                </div>
+
+                <div>
+                    <label for="Input.ConfirmPassword" class="block mb-2 text-sm/6 font-medium text-stone-50">Confirm password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                            <span class="material-symbols-outlined" style="font-size:20px;">key</span>
+                        </div>
+                        <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="block w-full rounded-md bg-white px-3 py-1.5 ps-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-cyan-400 sm:text-sm/6" autocomplete="new-password" aria-required="true" placeholder="password" />
+                    </div>
+                    <ValidationMessage For="() => Input.ConfirmPassword" class="pt-1.5 text-red-600 text-sm" />
+                </div>
+
+                <div>
+                    <Button Type="Button.ButtonType.Submit">Register</Button>
+                </div>
+
+            </EditForm>
+
+            @if (Environment.IsDevelopment())
+            {
+                <EditForm class="mt-4" Model="Seed" method="post" OnSubmit="SeedTestUserData" FormName="seed">
+                    <Button Type="Button.ButtonType.Submit" Style="Button.ButtonStyle.Secondary">
+                        Generate Test User with Seed Data (Dev Only)
+                    </Button>
+                </EditForm>
+            }
+
+            <p class="mt-10 text-center text-sm/6 text-stone-500">
+                Already have an account?
+                <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" class="text-xs font-semibold text-cyan-400 hover:text-cyan-500">Login to your account</a>
+            </p>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+
+    [SupplyParameterFromForm(FormName = "register")]
+    private InputModel? Input { get; set; }
+
+    private SeedModel Seed { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+    }
+
+    private async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, Input!.Username, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        Logger.LogInformation("User created a new account with password.");
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl);
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
+                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private async Task SeedTestUserData(EditContext editContext)
+    {
+        var response = await SeedService.SeedTestUserDataAsync(CancellationToken.None);
+        
+        RedirectManager.RedirectTo(
+            "Account/CreateTestUser",
+            new() 
+            { 
+                ["success"] = response.Success,
+                ["message"] = response.Message,
+                ["email"] = response.Email,
+                ["password"] = response.Password,
+            });
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(20, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 1)]
+        [Display(Name = "Username")]
+        public string Username { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+
+    private sealed class SeedModel { }
+}
